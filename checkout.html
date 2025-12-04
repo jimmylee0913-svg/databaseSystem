@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 結帳頁面 - Bubble Tea King</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans">
+
+    <header class="bg-white shadow-md p-4">
+        <div class="max-w-4xl mx-auto flex items-center">
+            <a href="index.html" class="text-pink-600 hover:text-pink-700 text-lg mr-4">← 返回菜單</a>
+            <h1 class="text-2xl font-bold text-gray-800">結帳</h1>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 pt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <div class="lg:col-span-2 space-y-8">
+
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">📦 您的訂單摘要</h2>
+                <div id="order-summary-list" class="space-y-3">
+                    <p class="text-gray-500">正在載入購物車...</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">📍 取餐方式</h2>
+                <div class="flex space-x-4 mb-4" id="pickup-options">
+                    <label class="flex items-center space-x-2">
+                        <input type="radio" name="pickup_type" value="pickup" checked class="form-radio text-pink-600">
+                        <span>現場取餐 (約 15 分鐘)</span>
+                    </label>
+                    <label class="flex items-center space-x-2">
+                        <input type="radio" name="pickup_type" value="delivery" class="form-radio text-pink-600">
+                        <span>外送 (運費 $50)</span>
+                    </label>
+                </div>
+
+                <form id="checkout-form">
+                    <div id="pickup-form" class="space-y-4">
+                        <input type="text" id="contact-name" placeholder="取餐人姓名" class="w-full p-3 border rounded-lg focus:border-pink-500" required>
+                        <input type="tel" id="contact-phone" placeholder="聯絡電話後三碼" class="w-full p-3 border rounded-lg focus:border-pink-500" required maxlength="3" pattern="\d{3}" inputmode="numeric">
+                    </div>
+                    <div id="delivery-form" class="space-y-4 hidden mt-4">
+                        <input type="text" id="delivery-address" placeholder="外送地址" class="w-full p-3 border rounded-lg focus:border-pink-500">
+                        <input type="text" placeholder="備註 (如：請勿按門鈴)" class="w-full p-3 border rounded-lg focus:border-pink-500">
+                    </div>
+                
+                    <div class="bg-white p-6 rounded-xl shadow-lg mt-8 -mx-6">
+                        <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">💳 付款方式</h2>
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-2 bg-gray-100 p-3 rounded-lg">
+                                <input type="radio" name="payment_type" value="cash" checked class="form-radio text-pink-600">
+                                <span>現金支付 (現場付款)</span>
+                            </label>
+                            <label class="flex items-center space-x-2 bg-gray-100 p-3 rounded-lg">
+                                <input type="radio" name="payment_type" value="credit" class="form-radio text-pink-600">
+                                <span>信用卡 (線上付款)</span>
+                            </label>
+                            <label class="flex items-center space-x-2 bg-gray-100 p-3 rounded-lg">
+                                <input type="radio" name="payment_type" value="linepay" class="form-radio text-pink-600">
+                                <span>Line Pay</span>
+                            </label>
+                        </div>
+                    </div>
+                </form>
+
+            </div>
+
+        </div>
+
+        <div class="lg:col-span-1">
+            <div class="bg-white p-6 rounded-xl shadow-2xl sticky top-20">
+                <h2 class="text-xl font-bold mb-4 text-pink-600">💸 訂單總計</h2>
+                <div class="space-y-2 border-b pb-4 mb-4">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">商品總額:</span>
+                        <span id="subtotal" class="font-medium">$0</span>
+                    </div>
+                    <div class="flex justify-between" id="delivery-fee-row">
+                        <span class="text-gray-600">運費:</span>
+                        <span id="delivery-fee" class="font-medium text-red-500">$0</span>
+                    </div>
+                </div>
+                <div class="flex justify-between text-2xl font-extrabold text-gray-800">
+                    <span>應付總額:</span>
+                    <span id="final-total">$0</span>
+                </div>
+                
+                <button type="submit" form="checkout-form" id="place-order-btn" class="mt-6 w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-lg transition duration-200">
+                    確認送出訂單
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // 全域變數定義 (與 DOMContentLoaded 內部共享)
+        let currentCart = [];
+        let subtotal = 0;
+        let DELIVERY_FEE = 0; 
+        const BASE_DELIVERY_FEE = 50; 
+        const API_URL = 'http://127.0.0.1:5000/api/order';
+
+        // --- 函式：更新總金額顯示 ---
+        function updateTotals() {
+            const subtotalElement = document.getElementById('subtotal');
+            const deliveryFeeElement = document.getElementById('delivery-fee');
+            const finalTotalElement = document.getElementById('final-total');
+
+            subtotalElement.textContent = `$${subtotal}`;
+            deliveryFeeElement.textContent = DELIVERY_FEE === 0 ? '免費' : `$${DELIVERY_FEE}`;
+            finalTotalElement.textContent = `$${subtotal + DELIVERY_FEE}`;
+            
+            // 如果購物車為空，禁用按鈕
+            document.getElementById('place-order-btn').disabled = currentCart.length === 0;
+        }
+
+        // --- 函式：渲染訂單摘要並計算總額 ---
+        function renderOrderSummary() {
+            const summaryList = document.getElementById('order-summary-list');
+            
+            // 1. 從 localStorage 讀取購物車
+            const cartJSON = localStorage.getItem('currentCart');
+            currentCart = cartJSON ? JSON.parse(cartJSON) : [];
+
+            summaryList.innerHTML = '';
+            subtotal = 0;
+
+            if (currentCart.length === 0) {
+                summaryList.innerHTML = '<p class="text-red-500">購物車是空的，請返回菜單頁點餐！</p>';
+            } else {
+                // 2. 計算總額並渲染列表
+                subtotal = currentCart.reduce((total, item) => total + (item.price * item.quantity), 0);
+                
+                currentCart.forEach(item => {
+                    const itemElement = document.createElement('div');
+                    // 將 item.id 賦予給資料屬性，以便刪除時識別
+                    itemElement.className = 'flex justify-between items-start border-b border-gray-100 pb-2 pt-2';
+                    itemElement.innerHTML = `
+                        <div class="flex-grow">
+                            <p class="font-semibold text-gray-800">${item.name} x ${item.quantity}</p>
+                            <p class="text-sm text-gray-500 ml-2">${item.options}</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="font-medium">$${item.price * item.quantity}</span>
+                            <button type="button" 
+                                data-item-id="${item.id}"
+                                class="delete-item-btn text-red-500 hover:text-red-700 transition duration-150 p-1 rounded-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                    summaryList.appendChild(itemElement);
+                });
+                
+                // 3. 綁定刪除按鈕事件
+                document.querySelectorAll('.delete-item-btn').forEach(button => {
+                    button.addEventListener('click', deleteCartItem);
+                });
+            }
+
+            updateTotals(); // 更新右側總金額
+        }
+        
+        // --- 函式：處理刪除品項 ---
+        function deleteCartItem(event) {
+            // 獲取要刪除的品項的唯一 ID
+            const itemIdToDelete = parseInt(event.currentTarget.getAttribute('data-item-id'));
+
+            // 1. 從 currentCart 陣列中過濾掉該品項
+            const newCart = currentCart.filter(item => item.id !== itemIdToDelete);
+            
+            // 2. 更新 localStorage
+            localStorage.setItem('currentCart', JSON.stringify(newCart));
+            
+            // 3. 重新渲染頁面
+            renderOrderSummary();
+        }
+
+
+        // --- DOMContentLoaded 主程式 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // 初始渲染
+            renderOrderSummary();
+
+            const pickupOptions = document.getElementById('pickup-options');
+            const pickupForm = document.getElementById('pickup-form');
+            const deliveryForm = document.getElementById('delivery-form');
+            const deliveryFeeRow = document.getElementById('delivery-fee-row');
+
+
+            pickupOptions.addEventListener('change', (event) => {
+                const type = event.target.value;
+                if (type === 'delivery') {
+                    DELIVERY_FEE = BASE_DELIVERY_FEE;
+                    deliveryForm.classList.remove('hidden');
+                    pickupForm.classList.remove('hidden');
+                    deliveryFeeRow.classList.remove('hidden');
+                } else {
+                    DELIVERY_FEE = 0;
+                    deliveryForm.classList.add('hidden');
+                    pickupForm.classList.remove('hidden');
+                    deliveryFeeRow.classList.add('hidden');
+                }
+                updateTotals();
+            });
+            
+            // 初始隱藏運費
+            document.getElementById('delivery-fee-row').classList.add('hidden'); 
+
+            // --- 處理送出訂單 ---
+            const checkoutForm = document.getElementById('checkout-form');
+            const contactNameInput = document.getElementById('contact-name');
+            const contactPhoneInput = document.getElementById('contact-phone');
+            const deliveryAddressInput = document.getElementById('delivery-address');
+
+
+            checkoutForm.addEventListener('submit', (event) => {
+                event.preventDefault(); 
+
+                const pickupType = document.querySelector('input[name="pickup_type"]:checked').value;
+                let address = null; 
+                
+                // 檢查購物車是否為空
+                if (currentCart.length === 0) {
+                    alert('購物車是空的，無法送出訂單！');
+                    return;
+                }
+
+                // 執行必填欄位和格式檢查 (姓名和電話在 HTML 上有 required，但 JS 仍檢查一次)
+                if (!contactNameInput.value) {
+                    alert('請填寫取餐人姓名！');
+                    contactNameInput.focus();
+                    return;
+                }
+                // ... (電話驗證)
+
+                // 處理地址
+                if (pickupType === 'delivery') {
+                    address = deliveryAddressInput.value.trim(); 
+                    if (!address) {
+                        alert('您選擇了外送，請填寫外送地址！');
+                        deliveryAddressInput.focus();
+                        return;
+                    }
+                } else {
+                    address = null; 
+                }
+
+                // 收集訂單資料
+                const orderData = {
+                    cartItems: currentCart, // 使用最新的 currentCart
+                    pickupType: pickupType,
+                    paymentType: document.querySelector('input[name="payment_type"]:checked').value,
+                    contactInfo: {
+                        name: contactNameInput.value, 
+                        phone: contactPhoneInput.value,
+                        address: address 
+                    } 
+                };
+
+                // 發送訂單
+                fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(orderData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.order_id) {
+                        alert(`訂單送出成功！您的訂單編號是 ${data.order_id}，總金額 $${data.final_amount}`);
+                        localStorage.removeItem('currentCart');
+                        window.location.href = `index.html`; 
+                    } else {
+                        // 處理後端傳回的失敗訊息
+                        alert(`訂單送出失敗: ${data.message || '未知錯誤'}`);
+                    }
+                })
+                .catch((error) => {
+                    console.error('Fetch Error:', error);
+                    alert('網路錯誤，訂單無法送出！請檢查 Console 了解詳情。');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

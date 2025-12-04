@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🥤 飲料店線上點餐系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定義 CSS - 讓懸浮購物車看起來更專業 */
+        .cart-float {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+
+    <header class="bg-white shadow-md p-4 sticky top-0 z-10">
+    <div class="max-w-4xl mx-auto flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-pink-600">Bubble Tea King</h1>
+        
+        <div class="relative w-1/3 min-w-[150px]">
+            <input 
+                type="text" 
+                id="search-input" 
+                placeholder="搜尋飲品名稱..." 
+                class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:ring-pink-500 focus:border-pink-500 transition duration-150"
+            >
+            <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+        </div>
+    </div>
+    </header>
+
+    <div id="customization-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden flex items-center justify-center z-50 transition-opacity duration-300">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 transform transition-transform duration-300 scale-95 opacity-0" id="modal-content">
+        
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <h3 class="text-2xl font-bold text-pink-600">客製化您的 <span id="modal-item-name">飲品</span></h3>
+            <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <form id="customization-form" class="space-y-6">
+            <div>
+                <label class="block text-lg font-semibold mb-2">甜度 (必選)</label>
+                <div class="flex flex-wrap gap-2" id="sweetness-options">
+                    </div>
+            </div>
+
+            <div>
+                <label class="block text-lg font-semibold mb-2">冰塊 (必選)</label>
+                <div class="flex flex-wrap gap-2" id="ice-options">
+                    </div>
+            </div>
+
+            <div>
+                <label class="block text-lg font-semibold mb-2">加料區 (選填)</label>
+                <div class="space-y-2" id="topping-options">
+                    </div>
+            </div>
+            
+            <div class="border-t pt-4 flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <button type="button" id="qty-minus" class="bg-gray-200 hover:bg-gray-300 p-2 rounded-full h-8 w-8 flex items-center justify-center font-bold">-</button>
+                    <span id="current-quantity" class="text-xl font-bold">1</span>
+                    <button type="button" id="qty-plus" class="bg-gray-200 hover:bg-gray-300 p-2 rounded-full h-8 w-8 flex items-center justify-center font-bold">+</button>
+                </div>
+                
+                <button type="submit" class="bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition duration-200" id="modal-add-to-cart-btn">
+                    加入購物車 ($<span id="modal-current-price">0</span>)
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+    <main class="max-w-4xl mx-auto p-4 pt-6">
+        
+        <div class="bg-indigo-50 p-6 rounded-xl shadow-md mb-6">
+            <h2 class="text-xl font-bold mb-3 text-indigo-700">🔎 訂單查詢</h2>
+            <div class="flex space-x-2">
+                <input 
+                    type="tel" 
+                    id="phone-query-input" 
+                    placeholder="請輸入手機後三碼 (3位數字)" 
+                    class="w-full max-w-xs p-2 border rounded-lg focus:border-indigo-500"
+                    maxlength="3" 
+                    pattern="\d{3}" 
+                    inputmode="numeric"
+                >
+                <button id="query-order-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150">
+                    查詢
+                </button>
+            </div>
+            <div id="query-result" class="mt-4 space-y-3 text-gray-700">
+                </div>
+        </div>
+        <div id="category-tabs" class="flex overflow-x-auto whitespace-nowrap space-x-3 pb-3 mb-6 border-b border-gray-200">
+            <button class="category-btn py-2 px-4 rounded-full text-sm font-medium bg-pink-600 text-white shadow-lg transition duration-150" data-category="all">🔥 人氣必點</button>
+            <button class="category-btn py-2 px-4 rounded-full text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition duration-150" data-category="milk-tea">🥤 經典奶茶</button>
+            <button class="category-btn py-2 px-4 rounded-full text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition duration-150" data-category="fruit-tea">🥝 清新果茶</button>
+            <button class="category-btn py-2 px-4 rounded-full text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition duration-150" data-category="seasonal">🍓 季節限定</button>
+        </div>
+
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">所有飲品</h2>
+        <div id="menu-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+    </main>
+
+    <div class="cart-float">
+        <button id="cart-float-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-4 shadow-2xl transition duration-300 transform hover:scale-105">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <span id="cart-item-count" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">0</span>
+        </button>
+    </div>
+
+    <script>
+        // --- 菜單資料結構 ---
+const menuItems = [
+    { id: 1, name: '珍珠奶茶', price: 60, category: 'milk-tea', isPopular: true, image: 'milkTea.png' },
+    { id: 2, name: '四季春青茶', price: 40, category: 'fruit-tea', isPopular: true, image: 'Tea.jpg' },
+    { id: 3, name: '鮮榨檸檬汁', price: 55, category: 'fruit-tea', isPopular: false, image: 'lemonJuice.jpg' },
+    { id: 4, name: '草莓優格冰沙', price: 85, category: 'seasonal', isPopular: false, image: 'strawberrySmoothie.jpg' },
+];
+
+const customizationOptions = {
+    sweetness: [
+        { label: '正常糖', value: 'normal', price: 0 },
+        { label: '少糖 (7分)', value: 'less', price: 0 },
+        { label: '半糖 (5分)', value: 'half', price: 0 },
+        { label: '微糖 (3分)', value: 'quarter', price: 0 },
+        { label: '無糖', value: 'free', price: 0 },
+    ],
+    ice: [
+        { label: '正常冰', value: 'normal', price: 0 },
+        { label: '少冰', value: 'less', price: 0 },
+        { label: '微冰', value: 'quarter', price: 0 },
+        { label: '去冰', value: 'free', price: 0 },
+        { label: '溫熱', value: 'warm', price: 0 },
+    ],
+    toppings: [
+        { label: '珍珠', value: 'boba', price: 10 },
+        { label: '椰果', value: 'coconut', price: 10 },
+        { label: '奶蓋', value: 'creme', price: 20 },
+    ]
+};
+
+// --- Modal 相關全域變數 ---
+const modal = document.getElementById('customization-modal');
+const modalContent = document.getElementById('modal-content');
+const modalItemName = document.getElementById('modal-item-name');
+const modalCurrentPrice = document.getElementById('modal-current-price');
+const currentQuantityEl = document.getElementById('current-quantity');
+const form = document.getElementById('customization-form');
+
+let currentItem = null; // 當前正在客製化的飲品對象
+let currentBasePrice = 0; // 當前飲品的基礎價格
+let currentQty = 1; // 當前飲品的數量
+
+let cart = []; // 購物車陣列
+const menuList = document.getElementById('menu-list');
+const cartItemCount = document.getElementById('cart-item-count');
+const searchInput = document.getElementById('search-input');
+
+// --- 查詢訂單相關元素 ---
+const phoneQueryInput = document.getElementById('phone-query-input');
+const queryOrderBtn = document.getElementById('query-order-btn');
+const queryResultDiv = document.getElementById('query-result');
+
+
+// --- 函式：渲染菜單列表 ---
+function renderMenu(itemsToRender) {
+    menuList.innerHTML = ''; // 清空現有列表
+
+    itemsToRender.forEach(item => {
+        const itemCard = document.createElement('div');
+        itemCard.className = 'bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 overflow-hidden';
+        
+        // 構建卡片 HTML 內容
+        itemCard.innerHTML = `
+            <img src="${item.image}" alt="${item.name}" class="w-full h-40 object-cover">
+            <div class="p-4">
+                <div class="flex justify-between items-start">
+                    <h3 class="text-xl font-semibold text-gray-800">${item.name}</h3>
+                    ${item.isPopular ? '<span class="text-xs bg-red-100 text-red-800 font-medium px-2 py-0.5 rounded-full">熱門</span>' : ''}
+                </div>
+                <p class="text-pink-600 font-bold text-lg mt-2">$${item.price}</p>
+                
+                <button 
+                    data-id="${item.id}"
+                    class="add-to-cart-btn mt-3 w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 rounded-lg transition duration-150 shadow-md">
+                    + 加入購物車
+                </button>
+            </div>
+        `;
+        menuList.appendChild(itemCard);
+    });
+
+    // 重新綁定「加入購物車」按鈕的事件
+    document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+        button.addEventListener('click', handleAddToCart);
+    });
+}
+
+// --- 函式：處理加入購物車事件 ---
+function handleAddToCart(event) {
+    const itemId = parseInt(event.currentTarget.getAttribute('data-id'));
+    const item = menuItems.find(i => i.id === itemId);
+
+    if (item) {
+        currentItem = item;
+        currentBasePrice = item.price;
+        currentQty = 1; // 重設數量
+        
+        // 1. 顯示 Modal
+        showCustomizationModal(item);
+        
+        // 2. 載入選項
+        renderOptions();
+        
+        // 3. 更新價格和數量顯示
+        updateModalDisplay();
+    }
+}
+
+// --- 函式：更新購物車數量顯示 ---
+function updateCartCount() {
+    // 這裡我們應該計算 cart 陣列的總項目數，而不是總數量。
+    // 如果您想顯示總數量，可以改成：cart.reduce((total, item) => total + item.quantity, 0);
+    cartItemCount.textContent = cart.length; 
+}
+
+// --- 函式：處理類別篩選 ---
+function handleCategoryFilter(event) {
+    const category = event.currentTarget.getAttribute('data-category');
+    
+    // 重設按鈕樣式
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.className = 'category-btn py-2 px-4 rounded-full text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition duration-150';
+    });
+    // 設置當前選中按鈕的樣式
+    event.currentTarget.className = 'category-btn py-2 px-4 rounded-full text-sm font-medium bg-pink-600 text-white shadow-lg transition duration-150';
+
+    if (category === 'all') {
+        renderMenu(menuItems.filter(item => item.isPopular));
+    } else {
+        const filteredItems = menuItems.filter(item => item.category === category);
+        renderMenu(filteredItems);
+    }
+}
+
+// --- 函式：處理搜尋事件 ---
+function handleSearch() {
+    const searchTerm = searchInput.value.toLowerCase().trim();
+
+    if (searchTerm === '') {
+        // 清空搜尋後回到 "all" 類別的顯示
+        document.querySelector('.category-btn[data-category="all"]').click(); 
+        return;
+    }
+
+    const filteredItems = menuItems.filter(item => {
+        return item.name.toLowerCase().includes(searchTerm);
+    });
+
+    renderMenu(filteredItems);
+
+    // 搜尋後移除類別按鈕的選中狀態，避免混淆
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.className = 'category-btn py-2 px-4 rounded-full text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition duration-150';
+    });
+}
+
+// --- 函式：顯示客製化 Modal ---
+function showCustomizationModal(item) {
+    modalItemName.textContent = item.name;
+    modal.classList.remove('hidden');
+    // 添加過場動畫類
+    setTimeout(() => {
+        modalContent.classList.remove('opacity-0', 'scale-95');
+        modalContent.classList.add('scale-100', 'opacity-100');
+    }, 10);
+}
+
+// --- 函式：關閉客製化 Modal ---
+function closeModal() {
+    modalContent.classList.remove('scale-100', 'opacity-100');
+    modalContent.classList.add('opacity-0', 'scale-95');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300); // 配合 CSS transition 結束時間
+}
+
+// --- 函式：渲染客製化選項 ---
+function renderOptions() {
+    // 檢查當前飲品是否是草莓優格冰沙 (或任何您定義的冰沙/限定商品)
+    const isSmoothie = currentItem && currentItem.name === '草莓優格冰沙'; 
+    
+    document.getElementById('sweetness-options').innerHTML = renderRadioOptions('sweetness', customizationOptions.sweetness, 'normal');
+    // 呼叫時傳入 isSmoothie 旗標，用於排除溫熱選項
+    document.getElementById('ice-options').innerHTML = renderRadioOptions('ice', customizationOptions.ice, 'normal', isSmoothie); 
+    document.getElementById('topping-options').innerHTML = renderCheckboxOptions('toppings', customizationOptions.toppings);
+
+    // 重新綁定選項改變事件 (用來即時更新價格)
+    form.querySelectorAll('input').forEach(input => {
+        input.addEventListener('change', updateModalDisplay);
+    });
+}
+
+// 輔助函式：渲染 Radio 按鈕群組 (修正後)
+function renderRadioOptions(name, options, defaultVal, excludeWarm = false) {
+    
+    // 根據 excludeWarm 旗標過濾選項
+    const filteredOptions = excludeWarm 
+        ? options.filter(opt => opt.value !== 'warm')
+        : options;
+
+    return filteredOptions.map(opt => `
+        <label class="flex items-center space-x-2 bg-gray-100 hover:bg-pink-100 p-3 rounded-full cursor-pointer transition duration-150">
+            <input type="radio" name="${name}" value="${opt.value}" ${opt.value === defaultVal ? 'checked' : ''} class="form-radio text-pink-600">
+            <span>${opt.label}</span>
+        </label>
+    `).join('');
+}
+
+// 輔助函式：渲染 Checkbox 群組
+function renderCheckboxOptions(name, options) {
+    return options.map(opt => `
+        <label class="flex justify-between items-center bg-gray-100 hover:bg-pink-100 p-3 rounded-lg cursor-pointer transition duration-150">
+            <div class="flex items-center space-x-2">
+                <input type="checkbox" name="${name}" value="${opt.value}" data-price="${opt.price}" class="form-checkbox text-pink-600 rounded">
+                <span>${opt.label} (+$${opt.price})</span>
+            </div>
+            
+        </label>
+    `).join('');
+}
+
+// --- 函式：更新 Modal 價格和數量顯示 ---
+function updateModalDisplay() {
+    let toppingPrice = 0;
+    
+    // 計算加料總價
+    form.querySelectorAll('input[name="toppings"]:checked').forEach(checkbox => {
+        toppingPrice += parseInt(checkbox.getAttribute('data-price'));
+    });
+
+    const itemTotal = (currentBasePrice + toppingPrice) * currentQty;
+
+    modalCurrentPrice.textContent = itemTotal;
+    currentQuantityEl.textContent = currentQty;
+}
+
+// --- 函式：最終將客製化飲品加入購物車 ---
+function finalAddToCart(event) {
+    event.preventDefault(); // 阻止表單預設提交行為
+    
+    // 獲取所有選中的選項
+    const sweetness = form.querySelector('input[name="sweetness"]:checked');
+    const ice = form.querySelector('input[name="ice"]:checked');
+    const selectedToppings = Array.from(form.querySelectorAll('input[name="toppings"]:checked')).map(cb => cb.parentNode.textContent.trim());
+
+    if (!sweetness || !ice) {
+        alert('請選擇甜度和冰塊！');
+        return;
+    }
+
+    const toppingLabel = selectedToppings.length > 0 ? `加${selectedToppings.join(', ')}` : '不加料';
+    
+    // 計算最終價格
+    let toppingPrice = 0;
+    form.querySelectorAll('input[name="toppings"]:checked').forEach(checkbox => {
+        toppingPrice += parseInt(checkbox.getAttribute('data-price'));
+    });
+    const finalPricePerUnit = currentBasePrice + toppingPrice;
+
+
+    // 建立購物車項目
+    const cartItem = {
+        // 使用 Date.now() + 隨機數確保 ID 唯一
+        id: Date.now() + Math.floor(Math.random() * 1000), 
+        menuId: currentItem.id,
+        name: currentItem.name,
+        price: finalPricePerUnit, // 存儲單價(含加料)
+        quantity: currentQty,     // <--- 這裡使用選中的數量
+        options: `${sweetness.parentNode.textContent.trim()} / ${ice.parentNode.textContent.trim()} / ${toppingLabel}`
+    };
+
+    // VVVV 修正部分：移除迴圈，只將品項加入一次 VVVV
+    cart.push(cartItem);
+    // ^^^^ 修正部分 ^^^^
+   
+    updateCartCount();
+    closeModal();
+}
+
+// --- 函式：執行訂單查詢 ---
+async function handleOrderQuery() {
+    const phoneSuffix = phoneQueryInput.value.trim();
+    queryResultDiv.innerHTML = `<p class="text-indigo-500">正在查詢中...</p>`;
+
+    if (phoneSuffix.length !== 3 || !/^\d{3}$/.test(phoneSuffix)) {
+        queryResultDiv.innerHTML = `<p class="text-red-500">請輸入正確的 3 位數字手機後三碼！</p>`;
+        return;
+    }
+
+    try {
+        const response = await fetch(`http://127.0.0.1:5000/api/order/query?phone_suffix=${phoneSuffix}`);
+        
+        if (response.status === 404) {
+             queryResultDiv.innerHTML = `<p class="text-red-500">查無此號碼的訂單記錄。</p>`;
+             return;
+        }
+
+        if (!response.ok) {
+            throw new Error('伺服器錯誤或網路異常');
+        }
+
+        const orders = await response.json();
+        renderQueryResult(orders);
+
+    } catch (error) {
+        console.error('查詢訂單發生錯誤:', error);
+        queryResultDiv.innerHTML = `<p class="text-red-500">查詢失敗，請檢查網路或後端服務是否運行。</p>`;
+    }
+}
+
+// --- 函式：渲染訂單查詢結果 ---
+function renderQueryResult(orders) {
+    if (orders.length === 0) {
+        queryResultDiv.innerHTML = `<p class="text-red-500">查無訂單記錄。</p>`;
+        return;
+    }
+    
+    let html = '<h3 class="font-bold text-lg border-b pb-2 mb-2">您的訂單記錄:</h3>';
+    
+    orders.forEach(order => {
+
+        const isDelivery = order.pickup_type === 'delivery';
+        const typeText = isDelivery ? 
+            `<span class="text-red-600 font-semibold">外送 (運費已計)</span>` : 
+            `<span class="text-green-600 font-semibold">現場取餐</span>`;
+            
+        const addressHtml = isDelivery && order.address ? 
+            `<p class="ml-4 text-sm text-gray-700"><strong>外送地址:</strong> ${order.address}</p>` : 
+            '';
+
+        html += `
+            <div class="bg-indigo-100 p-3 rounded-lg shadow-sm border-l-4 border-indigo-500 space-y-1">
+                <p><strong>編號:</strong> <span class="text-indigo-800 font-semibold">${order.order_id}</span></p>
+                <p><strong>品項:</strong> ${order.content}</p>
+                <p><strong>總額:</strong> $${order.final_amount.toFixed(0)}</p>
+                <p><strong>下單:</strong> ${order.created_at}</p>
+            </div>
+        `;
+    });
+    
+    queryResultDiv.innerHTML = html;
+}
+
+
+// --- 啟動初始化 ---
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. 初始渲染所有商品 (或人氣必點)
+    renderMenu(menuItems.filter(item => item.isPopular));
+
+    // 2. 綁定類別篩選按鈕事件
+    document.querySelectorAll('.category-btn').forEach(button => {
+        button.addEventListener('click', handleCategoryFilter);
+    });
+    
+    // 3. 綁定購物車按鈕點擊事件 (導向結帳頁面)
+    document.getElementById('cart-float-btn').addEventListener('click', () => {
+        if (cart.length === 0) {
+            alert('您的購物車是空的，快去點餐吧！');
+        } else {
+            localStorage.setItem('currentCart', JSON.stringify(cart));
+            window.location.href = 'checkout.html';
+        }
+    });
+
+    // 4. 綁定搜尋輸入事件
+    searchInput.addEventListener('input', handleSearch);
+
+    // 5. 綁定 Modal 相關事件 (修正後的邏輯，確保每次載入都綁定)
+    document.getElementById('close-modal-btn').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+    document.getElementById('qty-minus').addEventListener('click', () => {
+        if (currentQty > 1) {
+            currentQty--;
+            updateModalDisplay();
+        }
+    });
+    document.getElementById('qty-plus').addEventListener('click', () => {
+        currentQty++;
+        updateModalDisplay();
+    });
+    form.addEventListener('submit', finalAddToCart);
+
+    // 6. [新增] 綁定訂單查詢事件
+    queryOrderBtn.addEventListener('click', handleOrderQuery);
+    // 允許在輸入框按 Enter 鍵查詢
+    phoneQueryInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // 阻止表單預設行為
+            handleOrderQuery();
+        }
+    });
+});
+    </script>
+
+</body>
+</html>
